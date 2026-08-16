@@ -1,0 +1,52 @@
+---
+- name: Deploy staticki sajt na Nginx server
+  hosts: webserver
+  become: yes
+
+  tasks:
+    - name: Azuriraj apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Instaliraj nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+
+    - name: Instaliraj ufw (firewall)
+      ansible.builtin.apt:
+        name: ufw
+        state: present
+
+    - name: Dozvoli HTTP saobracaj (port 80) kroz firewall
+      community.general.ufw:
+        rule: allow
+        port: '80'
+        proto: tcp
+
+    - name: Omoguci ufw
+      community.general.ufw:
+        state: enabled
+        policy: deny
+
+    - name: Kopiraj fajlove sajta na server
+      ansible.builtin.copy:
+        src: site/
+        dest: /var/www/html/
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      notify: restart nginx
+
+    - name: Osiguraj da je nginx pokrenut i omogucen na boot
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: restart nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
